@@ -1,4 +1,4 @@
-package com.example.smartshop.domain.repositoryInterfaces
+package com.example.smartshop.domain.repository
 
 import com.example.smartshop.data.local.entity.User
 

@@ -2,7 +2,7 @@ package com.example.smartshop.data.repositoryImplementation
 
 import com.example.smartshop.data.local.entity.User
 import com.example.smartshop.data.remote.firebase.AuthService
-import com.example.smartshop.domain.repositoryInterfaces.AuthRepository
+import com.example.smartshop.domain.repository.AuthRepository
 
 class AuthRepositoryImpl(
     private val service: AuthService = AuthService()
