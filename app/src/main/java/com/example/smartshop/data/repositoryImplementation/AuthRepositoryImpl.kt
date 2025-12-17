@@ -1,7 +1,7 @@
 package com.example.smartshop.data.repositoryImplementation
 
 import com.example.smartshop.data.local.entity.User
-import com.example.smartshop.data.remote.firebase.AuthService
+import com.example.smartshop.data.remote.firebase.authentication.AuthService
 import com.example.smartshop.domain.repository.AuthRepository
 
 class AuthRepositoryImpl(

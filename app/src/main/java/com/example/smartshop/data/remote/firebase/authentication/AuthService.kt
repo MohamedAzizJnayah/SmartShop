@@ -1,8 +1,8 @@
-package com.example.smartshop.data.remote.firebase
+package com.example.smartshop.data.remote.firebase.authentication
+
 import com.example.smartshop.data.local.entity.User
 import com.example.smartshop.data.mapper.toDomainUser
 import com.google.firebase.auth.FirebaseAuth
-
 import kotlinx.coroutines.tasks.await
 
 class AuthService(

@@ -25,4 +25,5 @@ interface ProductDao {
 
     @Query("SELECT COALESCE(SUM(quantity * price), 0) FROM products")
     fun observeTotalValue(): Flow<Double>
+    fun clearAll()
 }
