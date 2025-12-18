@@ -3,12 +3,11 @@ package com.example.smartshop.data.remote.firebase.dao
 import com.example.smartshop.data.mapper.toRoom
 import com.example.smartshop.data.remote.firebase.entity.ProductFirestoreEntity
 import com.example.smartshop.domain.model.RemoteProductChange
-import com.example.smartshop.domain.model.Product
-import com.example.smartshop.domain.repository.ProductRepository
+
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
-import jakarta.inject.Singleton
+import javax.inject.Singleton
 
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow

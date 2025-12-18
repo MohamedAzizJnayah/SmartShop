@@ -89,4 +89,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 }

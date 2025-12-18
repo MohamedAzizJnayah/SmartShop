@@ -40,7 +40,12 @@ class ProductViewModel @Inject constructor(
             }
                 .onEach { (products, stats) ->
                     _state.update {
-                        it.copy(products = products, stats = stats, isLoading = false, error = null)
+                        it.copy(
+                            products = products,
+                            stats = stats,
+                            isLoading = false,
+                            error = null
+                        )
                     }
                 }
                 .catch { e ->
@@ -50,15 +55,10 @@ class ProductViewModel @Inject constructor(
         }
     }
 
-    fun syncNow(clearLocalFirst: Boolean = false) {
-        sync.stop()
-        sync.start(viewModelScope, clearLocalFirst = clearLocalFirst)
-    }
-
     fun addProduct(name: String, quantity: Int, price: Double) {
-        val clean = name.trim()
-        if (clean.isBlank()) {
-            _state.update { it.copy(error = "Le nom est obligatoire") }
+        val cleanName = name.trim()
+        if (cleanName.isBlank()) {
+            _state.update { it.copy(error = "Nom obligatoire") }
             return
         }
 
@@ -66,12 +66,12 @@ class ProductViewModel @Inject constructor(
             runCatching {
                 val p = Product(
                     id = UUID.randomUUID().toString(),
-                    name = clean,
+                    name = cleanName,
                     quantity = quantity,
                     price = price,
                     updatedAt = System.currentTimeMillis()
                 )
-                repo.upsert(p)
+                repo.upsert(p) // ✅ écrit Room + Firestore
             }.onFailure { e ->
                 _state.update { it.copy(error = e.message ?: "Erreur ajout") }
             }
@@ -79,15 +79,9 @@ class ProductViewModel @Inject constructor(
     }
 
     fun updateProduct(product: Product) {
-        val clean = (product.name ?: "").trim()
-        if (clean.isBlank()) {
-            _state.update { it.copy(error = "Le nom est obligatoire") }
-            return
-        }
-
         viewModelScope.launch {
             runCatching {
-                repo.upsert(product.copy(name = clean, updatedAt = System.currentTimeMillis()))
+                repo.upsert(product.copy(updatedAt = System.currentTimeMillis()))
             }.onFailure { e ->
                 _state.update { it.copy(error = e.message ?: "Erreur modification") }
             }
@@ -95,19 +89,40 @@ class ProductViewModel @Inject constructor(
     }
 
     fun deleteProduct(id: String) {
-        if (id.isBlank()) return
         viewModelScope.launch {
-            runCatching { repo.delete(id) }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: "Erreur suppression") } }
+            runCatching {
+                repo.delete(id) // ✅ supprime Room + Firestore
+            }.onFailure { e ->
+                _state.update { it.copy(error = e.message ?: "Erreur suppression") }
+            }
         }
+    }
+
+    fun syncNow(clearLocalFirst: Boolean = false) {
+        sync.stop()
+        sync.start(viewModelScope, clearLocalFirst)
     }
 
     fun clearError() {
         _state.update { it.copy(error = null) }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        // sync.stop() // optionnel
+    fun importProducts(items: List<Product>) {
+        if (items.isEmpty()) {
+            _state.update { it.copy(error = "Aucun produit trouvé dans le PDF") }
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                items.forEach { repo.upsert(it.copy(updatedAt = System.currentTimeMillis())) }
+            }.onFailure { e ->
+                _state.update { it.copy(error = e.message ?: "Erreur import PDF") }
+            }
+        }
     }
+
 }
+
+
+

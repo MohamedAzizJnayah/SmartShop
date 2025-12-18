@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -23,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,11 +35,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartshop.domain.model.Product
 import com.example.smartshop.ui.viewmodel.authentication.AuthViewModel
 import com.example.smartshop.ui.viewmodel.product.ProductViewModel
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.text.PDFTextStripper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import kotlin.math.roundToInt
 
 private enum class ChartType { BAR, PIE }
@@ -71,6 +76,12 @@ fun HomeScreen(
         }
     }
 
+    if (!authChecked) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+
+    // ===== Search & filter =====
     var query by remember { mutableStateOf("") }
     val filtered by remember(query, ui.products) {
         derivedStateOf {
@@ -80,6 +91,10 @@ fun HomeScreen(
         }
     }
 
+    // ✅ FIX export CSV: callbacks utilisent TOUJOURS la liste la plus récente
+    val latestFiltered by rememberUpdatedState(filtered)
+
+    // dialogs
     var showLogoutDialog by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf<Product?>(null) }
     var showEditor by remember { mutableStateOf(false) }
@@ -89,23 +104,22 @@ fun HomeScreen(
     var chartType by remember { mutableStateOf(ChartType.BAR) }
     var chartMetric by remember { mutableStateOf(ChartMetric.QUANTITY) }
 
-    if (!authChecked) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        return
-    }
-
-    // ========= EXPORT (CSV / PDF) =========
+    // ========= EXPORT / IMPORT =========
     fun nowFileStamp(): String =
         SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
 
+    // ✅ Export CSV
     val csvLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {
-                val csv = productsToCsv(filtered)
-                writeTextToUri(context, uri, csv)
+                val snapshot = latestFiltered.toList() // ✅ snapshot stable
+                val csv = productsToCsvExcel(snapshot) // ✅ CSV corrigé
+                withContext(Dispatchers.IO) {
+                    writeTextToUri(context, uri, csv)
+                }
             }.onSuccess {
                 snackbar.showSnackbar("CSV exporté ✅")
             }.onFailure {
@@ -114,13 +128,17 @@ fun HomeScreen(
         }
     }
 
+    // ✅ Export PDF
     val pdfLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {
-                writeProductsPdf(context, uri, filtered)
+                val snapshot = latestFiltered.toList()
+                withContext(Dispatchers.IO) {
+                    writeProductsPdf(context, uri, snapshot)
+                }
             }.onSuccess {
                 snackbar.showSnackbar("PDF exporté ✅")
             }.onFailure {
@@ -129,7 +147,27 @@ fun HomeScreen(
         }
     }
 
-    // dialogs
+    // ✅ Import PDF
+    val pdfImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching {
+                val imported = withContext(Dispatchers.IO) {
+                    readProductsFromPdf(context, uri)
+                }
+                productViewModel.importProducts(imported)
+                imported.size
+            }.onSuccess { count ->
+                snackbar.showSnackbar("Import PDF : $count produit(s) ✅")
+            }.onFailure {
+                snackbar.showSnackbar("Erreur import PDF: ${it.message}")
+            }
+        }
+    }
+
+    // dialogs UI
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -191,9 +229,7 @@ fun HomeScreen(
     )
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
-    // export menu
-    var exportMenu by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -249,22 +285,33 @@ fun HomeScreen(
                         }
                     ) { Icon(Icons.Default.Sync, contentDescription = "Sync") }
 
-                    IconButton(onClick = { exportMenu = true }) {
-                        Icon(Icons.Default.UploadFile, contentDescription = "Export")
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                     }
-                    DropdownMenu(expanded = exportMenu, onDismissRequest = { exportMenu = false }) {
+
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(
                             text = { Text("Exporter CSV") },
+                            leadingIcon = { Icon(Icons.Default.UploadFile, null) },
                             onClick = {
-                                exportMenu = false
+                                menuExpanded = false
                                 csvLauncher.launch("smartshop_products_${nowFileStamp()}.csv")
                             }
                         )
                         DropdownMenuItem(
                             text = { Text("Exporter PDF") },
+                            leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) },
                             onClick = {
-                                exportMenu = false
+                                menuExpanded = false
                                 pdfLauncher.launch("smartshop_products_${nowFileStamp()}.pdf")
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Importer PDF") },
+                            leadingIcon = { Icon(Icons.Default.Download, null) },
+                            onClick = {
+                                menuExpanded = false
+                                pdfImportLauncher.launch(arrayOf("application/pdf"))
                             }
                         )
                     }
@@ -422,8 +469,7 @@ private fun ChartCard(
                 ChartMetric.QUANTITY -> products.sortedByDescending { it.quantity ?: 0 }
                 ChartMetric.VALUE -> products.sortedByDescending { (it.price ?: 0.0) * (it.quantity ?: 0) }
             }
-            val top = sorted.take(5)
-            top.map {
+            sorted.take(5).map {
                 val v = when (metric) {
                     ChartMetric.QUANTITY -> (it.quantity ?: 0).toFloat()
                     ChartMetric.VALUE -> ((it.price ?: 0.0) * (it.quantity ?: 0)).toFloat()
@@ -701,27 +747,48 @@ private fun ProductEditorDialog(
 
 // ===================== EXPORT HELPERS (CSV / PDF) =====================
 
-private fun productsToCsv(products: List<Product>): String {
+// ✅ CSV corrigé: BOM UTF-8 + ; + échappement guillemets + CRLF
+private fun productsToCsvExcel(products: List<Product>): String {
+    fun csvCell(v: String): String {
+        val escaped = v.replace("\"", "\"\"")
+        return "\"$escaped\""
+    }
+
+    val sep = ';' // Excel FR
     val sb = StringBuilder()
-    sb.append("id,name,quantity,price,total\n")
+
+    sb.append('\uFEFF') // BOM pour Excel (accents)
+    sb.append("id${sep}name${sep}quantity${sep}price${sep}total\r\n")
+
     products.forEach { p ->
-        val name = (p.name ?: "").replace(",", " ")
+        val name = (p.name ?: "").trim()
         val qty = p.quantity ?: 0
         val price = p.price ?: 0.0
         val total = price * qty
-        sb.append("${p.id},$name,$qty,$price,$total\n")
+
+        sb.append(csvCell(p.id))
+        sb.append(sep)
+        sb.append(csvCell(name))
+        sb.append(sep)
+        sb.append(qty)
+        sb.append(sep)
+        sb.append(String.format(Locale.US, "%.2f", price))
+        sb.append(sep)
+        sb.append(String.format(Locale.US, "%.2f", total))
+        sb.append("\r\n")
     }
+
     return sb.toString()
 }
 
-private fun writeTextToUri(context: Context, uri: android.net.Uri, text: String) {
+private fun writeTextToUri(context: Context, uri: Uri, text: String) {
     context.contentResolver.openOutputStream(uri)?.use { out ->
         out.write(text.toByteArray(Charsets.UTF_8))
         out.flush()
     } ?: error("Impossible d’ouvrir le fichier")
 }
 
-private fun writeProductsPdf(context: Context, uri: android.net.Uri, products: List<Product>) {
+private fun writeProductsPdf(context: Context, uri: Uri, products: List<Product>) {
     val doc = PdfDocument()
 
     val pageW = 595  // A4 approx
@@ -746,6 +813,12 @@ private fun writeProductsPdf(context: Context, uri: android.net.Uri, products: L
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         color = android.graphics.Color.BLACK
     }
+    val importPaint = Paint().apply {
+        isAntiAlias = true
+        textSize = 9f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        color = android.graphics.Color.DKGRAY
+    }
 
     var pageNumber = 1
     var y = margin
@@ -758,7 +831,6 @@ private fun writeProductsPdf(context: Context, uri: android.net.Uri, products: L
         page.canvas.drawText("SmartShop - Liste des produits", margin.toFloat(), y.toFloat(), titlePaint)
         y += 26
 
-        // header row
         page.canvas.drawText("Nom", margin.toFloat(), y.toFloat(), headerPaint)
         page.canvas.drawText("Qté", (margin + 260).toFloat(), y.toFloat(), headerPaint)
         page.canvas.drawText("Prix", (margin + 330).toFloat(), y.toFloat(), headerPaint)
@@ -778,7 +850,7 @@ private fun writeProductsPdf(context: Context, uri: android.net.Uri, products: L
         val total = price * qty
         grandTotal += total
 
-        if (y > pageH - margin) {
+        if (y > pageH - margin - 20) {
             doc.finishPage(page)
             pageNumber++
             page = newPage()
@@ -792,13 +864,36 @@ private fun writeProductsPdf(context: Context, uri: android.net.Uri, products: L
     }
 
     // footer total
-    if (y > pageH - margin) {
+    if (y > pageH - margin - 40) {
         doc.finishPage(page)
         pageNumber++
         page = newPage()
     }
-    y += 10
-    page.canvas.drawText("Total stock: ${String.format(Locale.getDefault(), "%.2f", grandTotal)} DT", margin.toFloat(), y.toFloat(), headerPaint)
+    y += 12
+    page.canvas.drawText(
+        "Total stock: ${String.format(Locale.getDefault(), "%.2f", grandTotal)} DT",
+        margin.toFloat(),
+        y.toFloat(),
+        headerPaint
+    )
+    y += 22
+
+    // ✅ SECTION IMPORTABLE
+    page.canvas.drawText("IMPORT DATA (SmartShop)", margin.toFloat(), y.toFloat(), headerPaint)
+    y += 14
+    products.forEach { p ->
+        if (y > pageH - margin - 20) {
+            doc.finishPage(page)
+            pageNumber++
+            page = newPage()
+        }
+        val name = (p.name ?: "").replace("|", " ").trim()
+        val qty = p.quantity ?: 0
+        val price = p.price ?: 0.0
+        val line = "$name|$qty|$price" // format stable
+        page.canvas.drawText(line.take(90), margin.toFloat(), y.toFloat(), importPaint)
+        y += 12
+    }
 
     doc.finishPage(page)
 
@@ -808,6 +903,48 @@ private fun writeProductsPdf(context: Context, uri: android.net.Uri, products: L
     } ?: error("Impossible d’ouvrir le fichier PDF")
 
     doc.close()
+}
+
+// ===================== IMPORT PDF HELPERS =====================
+
+private fun readProductsFromPdf(context: Context, uri: Uri): List<Product> {
+    val text = context.contentResolver.openInputStream(uri)?.use { input ->
+        PDDocument.load(input).use { doc ->
+            PDFTextStripper().getText(doc)
+        }
+    } ?: error("Impossible de lire le PDF")
+
+    return parseProductsFromPdfText(text)
+}
+
+private fun parseProductsFromPdfText(text: String): List<Product> {
+    val lines = text
+        .lines()
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+    val start = lines.indexOfFirst { it.contains("IMPORT DATA", ignoreCase = true) }
+    if (start == -1) return emptyList()
+
+    val dataLines = lines.drop(start + 1)
+
+    return dataLines.mapNotNull { line ->
+        val parts = line.split("|").map { it.trim() }
+        if (parts.size < 3) return@mapNotNull null
+
+        val name = parts[0]
+        val qty = parts[1].toIntOrNull() ?: return@mapNotNull null
+        val price = parts[2].replace(",", ".").toDoubleOrNull() ?: return@mapNotNull null
+        if (name.isBlank()) return@mapNotNull null
+
+        Product(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            quantity = qty,
+            price = price,
+            updatedAt = System.currentTimeMillis()
+        )
+    }
 }
 
 // ===================== FORMAT =====================
