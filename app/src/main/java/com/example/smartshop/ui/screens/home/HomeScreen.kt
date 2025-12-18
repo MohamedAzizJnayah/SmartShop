@@ -30,7 +30,8 @@ import kotlinx.coroutines.delay
 fun HomeScreen(
     onLogout: () -> Unit,
     productViewModel: ProductViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    onGoToDashboard: () -> Unit
 ) {
     val user by authViewModel.user.collectAsState()
 
@@ -78,7 +79,7 @@ fun HomeScreen(
         )
     }
 
-    // 🌈 Fond pro (soft)
+    // Fond pro (soft)
     val bg = Brush.verticalGradient(
         listOf(
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
@@ -177,7 +178,7 @@ fun HomeScreen(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         AssistChip(
-                            onClick = { },
+                            onClick = {onGoToDashboard() },
                             label = { Text("Dashboard") },
                             colors = AssistChipDefaults.assistChipColors(
                                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
