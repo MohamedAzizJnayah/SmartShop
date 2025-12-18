@@ -1,4 +1,4 @@
-package com.example.smartshop.data.local.entity
+package com.example.smartshop.domain.model
 
 data class User(
     val uid: String,

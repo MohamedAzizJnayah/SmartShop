@@ -1,14 +1,18 @@
 package com.example.smartshop.data.remote.firebase.sync
 
 import com.example.smartshop.data.local.dao.ProductDao
-import com.example.smartshop.data.mapper.toRoom
 import com.example.smartshop.data.remote.firebase.dao.ProductFirestoreDao
+import com.example.smartshop.domain.repository.ProductRepository
+import com.example.smartshop.domain.model.RemoteProductChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class FirestoreToRoomSync(
+@Singleton
+class FirestoreToRoomSync @Inject constructor(
     private val remote: ProductFirestoreDao,
     private val local: ProductDao
 ) {
@@ -22,7 +26,7 @@ class FirestoreToRoomSync(
 
             remote.observeChanges().collect { change ->
                 when (change) {
-                    is RemoteProductChange.Upsert -> local.upsert(change.p.toRoom())
+                    is RemoteProductChange.Upsert -> local.upsert(change.p)
                     is RemoteProductChange.Delete -> local.deleteById(change.id)
                 }
             }

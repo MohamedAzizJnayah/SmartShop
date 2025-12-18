@@ -8,15 +8,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.smartshop.ui.viewmodel.AuthViewModel
+import com.example.smartshop.ui.viewmodel.authentication.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel =hiltViewModel()
 ) {
     val loading by viewModel.loading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -26,10 +27,9 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
 
     // After successful registration → navigate
-    if (user != null) {
-        onRegisterSuccess()
+    LaunchedEffect(user) {
+        if (user != null)  onRegisterSuccess()
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()

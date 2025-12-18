@@ -1,6 +1,6 @@
 package com.example.smartshop.domain.repository
 
-import com.example.smartshop.data.local.entity.User
+import com.example.smartshop.domain.model.User
 
 interface AuthRepository {
     suspend fun login(email: String, password: String): User?

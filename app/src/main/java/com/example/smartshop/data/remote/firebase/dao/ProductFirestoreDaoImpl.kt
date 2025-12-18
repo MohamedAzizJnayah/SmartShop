@@ -1,16 +1,24 @@
 package com.example.smartshop.data.remote.firebase.dao
 
+import com.example.smartshop.data.mapper.toRoom
 import com.example.smartshop.data.remote.firebase.entity.ProductFirestoreEntity
-import com.example.smartshop.data.remote.firebase.sync.RemoteProductChange
+import com.example.smartshop.domain.model.RemoteProductChange
+import com.example.smartshop.domain.model.Product
+import com.example.smartshop.domain.repository.ProductRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
+import jakarta.inject.Singleton
+
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class ProductFirestoreDaoImpl(
+@Singleton
+class ProductFirestoreDaoImpl @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) : ProductFirestoreDao {
@@ -20,21 +28,25 @@ class ProductFirestoreDaoImpl(
             .document(requireNotNull(auth.currentUser).uid)
             .collection("products")
 
-    override fun observeAll(): Flow<List<ProductFirestoreEntity>> = callbackFlow {
+    override fun observeAll() = callbackFlow {
         val reg = col().addSnapshotListener { snap, err ->
             if (err != null || snap == null) return@addSnapshotListener
 
-            val list = snap.documents.mapNotNull { doc ->
-                doc.toObject(ProductFirestoreEntity::class.java)?.copy(id = doc.id)
+            launch(kotlinx.coroutines.Dispatchers.Default) {
+                val list = snap.documents.mapNotNull { doc ->
+                    doc.toObject(ProductFirestoreEntity::class.java)
+                        ?.copy(id = doc.id)
+                        ?.toRoom()
+                }
+                trySend(list)
             }
-            trySend(list)
         }
-
         awaitClose { reg.remove() }
     }
 
-    override suspend fun upsert(product: ProductFirestoreEntity) {
-        col().document(product.id).set(product).await()
+
+    override suspend fun upsert(entity: ProductFirestoreEntity) {
+        col().document(entity.id).set(entity).await()
     }
 
     override suspend fun delete(id: String) {
@@ -50,7 +62,7 @@ class ProductFirestoreDaoImpl(
                     DocumentChange.Type.ADDED,
                     DocumentChange.Type.MODIFIED -> {
                         val entity = change.document.toObject(ProductFirestoreEntity::class.java)
-                            .copy(id = change.document.id)
+                            .copy(id = change.document.id).toRoom()
                         trySend(RemoteProductChange.Upsert(entity))
                     }
                     DocumentChange.Type.REMOVED -> {
@@ -61,4 +73,6 @@ class ProductFirestoreDaoImpl(
         }
         awaitClose { reg.remove() }
     }
+
+
 }

@@ -1,15 +1,18 @@
-package com.example.smartshop.ui.viewmodel
+package com.example.smartshop.ui.viewmodel.authentication
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.smartshop.data.repositoryImplementation.AuthRepositoryImpl
-import com.example.smartshop.data.local.entity.User
+import com.example.smartshop.domain.model.User
+import com.example.smartshop.domain.repository.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class AuthViewModel(
-    private val repo: AuthRepositoryImpl = AuthRepositoryImpl()
+@HiltViewModel
+class AuthViewModel  @Inject constructor(
+    private val repo: AuthRepository
 ) : ViewModel() {
 
     private val _loading = MutableStateFlow(false)
@@ -69,5 +72,3 @@ class AuthViewModel(
     }
 
 }
-
-

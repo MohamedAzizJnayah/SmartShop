@@ -1,6 +1,6 @@
 package com.example.smartshop.data.mapper
 
-import com.example.smartshop.data.local.entity.User
+import com.example.smartshop.domain.model.User
 import com.google.firebase.auth.FirebaseUser
 
 

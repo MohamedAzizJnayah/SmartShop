@@ -10,7 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.rememberNavController
 import com.example.smartshop.ui.navigation.AppNav
 import com.example.smartshop.ui.theme.SmartShopTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

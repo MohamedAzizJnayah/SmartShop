@@ -7,7 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.smartshop.ui.viewmodel.AuthViewModel
+import com.example.smartshop.ui.viewmodel.authentication.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
