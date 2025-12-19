@@ -50,6 +50,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    // Add these to dependencies section
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
     // ================= Compose =================
     implementation(platform(libs.androidx.compose.bom))
