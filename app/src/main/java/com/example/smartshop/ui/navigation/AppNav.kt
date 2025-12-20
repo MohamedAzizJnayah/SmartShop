@@ -5,7 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.smartshop.ui.screens.auth.LoginScreen
 import com.example.smartshop.ui.screens.auth.RegisterScreen
-import com.example.smartshop.ui.screens.home.HomeScreen
+import com.example.smartshop.ui.screens.home.HomeNavigationScreen
 import com.example.smartshop.ui.viewmodel.authentication.AuthViewModel
 import com.example.smartshop.ui.viewmodel.product.ProductViewModel
 
@@ -50,7 +50,7 @@ fun AppNav(navController: NavHostController) {
         }
 
         composable(Screen.Home.route) {
-            HomeScreen(
+            HomeNavigationScreen(
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }

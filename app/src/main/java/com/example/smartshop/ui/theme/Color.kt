@@ -48,6 +48,18 @@ val DarkPrimary = Color(0xFF93C5FD)
 val DarkOnPrimary = Color(0xFF071426)
 val DarkPrimaryContainer = Color(0xFF172554)
 val DarkOnPrimaryContainer = Color(0xFFDCE6FF)
+// ============================
+// Gradient colors for Auth
+// ============================
+val PrimaryGradientStart = Color(0xFF6366F1)  // Indigo
+val PrimaryGradientEnd = Color(0xFF8B5CF6)    // Purple
+val SecondaryColor = Color(0xFF10B981)         // Emerald Green
+val TertiaryColor = Color(0xFF0EA5E9)          // Sky Blue
+
+// Text Colors
+val TextPrimary = Color(0xFF1E293B)
+val TextSecondary = Color(0xFF64748B)
+val SuccessColor = Color(0xFF10B981)
 
 val DarkSecondary = Color(0xFFA5B4FC)
 val DarkOnSecondary = Color(0xFF0B1220)

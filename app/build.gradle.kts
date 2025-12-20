@@ -50,8 +50,12 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-
-    // ================= Compose =================
+    // Add these to dependencies section
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
+// ================= HTTP & AI =================
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
