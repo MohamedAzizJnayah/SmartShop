@@ -2,10 +2,12 @@ package com.example.smartshop.ui.screens.product
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -35,6 +37,7 @@ fun ProductsManagementScreen(
     var editingProduct by remember { mutableStateOf<Product?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var deleteConfirm by remember { mutableStateOf<Product?>(null) }
+    var selectedProduct by remember { mutableStateOf<Product?>(null) }
 
     val filteredProducts = remember(searchQuery, state.products) {
         if (searchQuery.isBlank()) state.products
@@ -130,7 +133,8 @@ fun ProductsManagementScreen(
                         ProductManagementCard(
                             product = product,
                             onEdit = { editingProduct = product; showAddDialog = true },
-                            onDelete = { deleteConfirm = product }
+                            onDelete = { deleteConfirm = product },
+                            onClick = { selectedProduct = product }
                         )
                     }
                 }
@@ -189,18 +193,37 @@ fun ProductsManagementScreen(
             }
         )
     }
+
+    // SHOW PRODUCT DETAIL
+    selectedProduct?.let { product ->
+        ProductDetailScreen(
+            product = product,
+            onBack = { selectedProduct = null },
+            onEdit = {
+                selectedProduct = null
+                editingProduct = it
+                showAddDialog = true
+            },
+            onDelete = { productId ->
+                viewModel.deleteProduct(productId)
+                selectedProduct = null
+            }
+        )
+    }
 }
 
 @Composable
 private fun ProductManagementCard(
     product: Product,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -325,7 +348,7 @@ private fun ProductFormDialog(
                     value = quantity,
                     onValueChange = { newQty -> quantity = newQty },
                     label = { Text("Quantité") },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -334,7 +357,7 @@ private fun ProductFormDialog(
                     value = price,
                     onValueChange = { newPrice -> price = newPrice },
                     label = { Text("Prix") },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal
                     ),
                     modifier = Modifier.fillMaxWidth()
